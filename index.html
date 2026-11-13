@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sinxs // Терминал</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --alien-blue: #4da6ff;
+            --alien-glow: #0088ff;
+            --panel-bg: rgba(0, 15, 30, 0.6);
+            --border-color: rgba(77, 166, 255, 0.3);
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            font-family: 'Share Tech Mono', monospace;
+            color: var(--alien-blue);
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #water-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        #main-interface {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        /* Верхняя панель с названием */
+        .header {
+            margin-top: 30px; /* Немного уменьшил отступ, чтобы влезло больше текста */
+            text-align: center;
+            text-shadow: 0 0 15px var(--alien-glow);
+            animation: flicker 4s infinite;
+            width: 100%;
+        }
+
+        .header h1 {
+            font-size: 5rem;
+            margin: 0;
+            letter-spacing: 12px;
+            font-weight: normal;
+            text-transform: uppercase;
+        }
+
+        /* Стиль для подзаголовка */
+        .header p.subtitle {
+            margin: 5px 0 0 0;
+            font-size: 1.2rem;
+            letter-spacing: 4px;
+            opacity: 0.7;
+            text-transform: uppercase;
+        }
+
+        /* Стиль для твоего тега */
+        .header p.tag {
+            margin: 15px 0 0 0;
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+            color: #fff; /* Белый цвет, чтобы выделялся */
+            text-shadow: 0 0 10px var(--alien-blue), 0 0 20px var(--alien-blue);
+            font-weight: bold;
+        }
+
+        .menu-container {
+            position: absolute;
+            bottom: 50px;
+            left: 50px;
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 15px;
+            pointer-events: auto;
+            align-items: flex-start;
+        }
+
+        .menu-btn {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            color: var(--alien-blue);
+            padding: 12px 25px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1.1rem;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 10px rgba(0, 136, 255, 0.1);
+            backdrop-filter: blur(5px);
+            text-align: left;
+            min-width: 220px;
+        }
+
+        .menu-btn:hover {
+            background: rgba(77, 166, 255, 0.25);
+            border-color: var(--alien-blue);
+            box-shadow: 0 0 20px rgba(0, 136, 255, 0.6), inset 0 0 15px rgba(0, 136, 255, 0.4);
+            text-shadow: 0 0 8px var(--alien-blue);
+            padding-left: 35px;
+        }
+
+        .menu-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--alien-blue);
+            transform: scaleY(0);
+            transform-origin: bottom;
+            transition: transform 0.3s ease;
+        }
+
+        .menu-btn:hover::before {
+            transform: scaleY(1);
+        }
+
+        /* Всплывающее окно (Терминал) */
+        #terminal-modal {
+            position: absolute;
+            top: 5%;
+            left: 5%;
+            width: 90%;
+            height: 90%;
+            background: rgba(0, 5, 10, 0.95);
+            border: 2px solid var(--alien-blue);
+            box-shadow: 0 0 60px rgba(0, 136, 255, 0.4), inset 0 0 30px rgba(0, 136, 255, 0.1);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.95);
+            transition: opacity 0.3s, transform 0.3s;
+            backdrop-filter: blur(8px);
+        }
+
+        #terminal-modal.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1);
+        }
+
+        .term-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 25px;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(77, 166, 255, 0.15);
+        }
+
+        .term-title {
+            font-size: 1.4rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px var(--alien-glow);
+        }
+
+        .close-btn {
+            background: transparent;
+            border: 1px solid #ff4a4a;
+            color: #ff4a4a;
+            font-family: 'Share Tech Mono', monospace;
+            padding: 8px 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1.1rem;
+        }
+
+        .close-btn:hover {
+            background: #ff4a4a;
+            color: #000;
+            box-shadow: 0 0 20px #ff4a4a;
+        }
+
+        .term-body {
+            padding: 40px 60px; 
+            flex-grow: 1;
+            overflow-y: auto;
+            font-size: 1.2rem; 
+            line-height: 1.8;
+            text-transform: none; 
+            color: #b3d4ff;
+        }
+
+        .term-body p {
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        
+        .term-body span.highlight {
+            color: #fff;
+            text-shadow: 0 0 10px #fff;
+            font-weight: bold;
+        }
+
+        .color-red { color: #ff4a4a; text-shadow: 0 0 8px #ff4a4a; }
+        .color-green { color: #4aff4a; text-shadow: 0 0 8px #4aff4a; }
+        .color-neon { color: #ff4aff; text-shadow: 0 0 8px #ff4aff; } 
+
+        .term-image {
+            display: block;
+            max-width: 400px;
+            width: 100%;
+            border: 2px solid var(--alien-blue);
+            box-shadow: 0 0 20px rgba(0, 136, 255, 0.5);
+            margin: 20px auto;
+        }
+
+        @keyframes flicker {
+            0%, 100% { opacity: 1; }
+            5% { opacity: 0.8; }
+            10% { opacity: 1; }
+            15% { opacity: 0.9; }
+            20% { opacity: 1; }
+            50% { opacity: 0.95; }
+            80% { opacity: 1; }
+        }
+
+        ::-webkit-scrollbar { width: 10px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: var(--alien-blue); }
+    </style>
+</head>
+<body>
+
+    <canvas id="water-canvas"></canvas>
+
+    <div id="main-interface">
+        <div class="header">
+            <!-- Измененный текст здесь -->
+            <h1>Синксы</h1>
+            <p class="subtitle">Клоунобразные существа</p>
+            <p class="tag">@sinxxl</p>
+        </div>
+
+        <div class="menu-container">
+            <button class="menu-btn" onclick="openTerminal('БИБЛИОТЕКА', '<img src=\'https://i.ibb.co/BVppG1r4/pony-town-sinxxl-dance-lie-blinking-padded-4x-1.gif\' class=\'term-image\' alt=\'Библиотека Синксов\'><p>Данные обновляются... Ожидайте поступления новых архивов.</p>')">БИБЛИОТЕКА</button>
+
+            <button class="menu-btn" onclick="openTerminal('ПРЕДСТАВИТЕЛИ', '<p>Классификация особей по морфологическим признакам:</p><br><p><span class=\'color-red\'>Умбры (красным)</span> - Морду, Мора</p><p><span class=\'color-green\'>Сангвины (зеленым)</span> - Липучка, Пилюлька</p><p><span class=\'color-neon\'>Неониды (голубо-розовым)</span> - Лирро, Ланиты</p>')">ПРЕДСТАВИТЕЛИ</button>
+
+            <button class="menu-btn" onclick="openTerminal('ПИЩЕВАРЕНИЕ', '<p>Рацион Синксов базируется преимущественно на органике. Однако, в силу парадоксальных метаболических реакций, потребление концентрированных сахаров вызывает у них выраженный аллергический ответ — явление, которое можно считать ироничным, учитывая их внешнее сходство с клоунами. При этом малые дозы глюкозы не провоцируют патологических реакций и, вероятно, могут усваиваться без негативных последствий.</p><p>Помимо органики, в качестве вспомогательных компонентов питания Синксы периодически употребляют растительную клетчатку (траву, кору), а также мелкие минеральные фракции (камешки), что способствует нормализации пищеварения и механической стимуляции желудочно-кишечного тракта.</p><p>Особого внимания заслуживает их устойчивость к токсическим и трупным субстратам: пищеварительная система Синксов эффективно расщепляет трупные вещества и ряд ядовитых соединений. Однако при превышении допустимых концентраций подобные вещества могут оказывать летальное воздействие, что указывает на наличие у организма определённого порога токсического порога.</p>')">ПИЩЕВАРЕНИЕ</button>
+
+            <button class="menu-btn" onclick="openTerminal('ТАНАТОР', '<p>Популяция Синксов локализована на территории бывшего парка развлечений, носящего официальное название «Танатология»; в среде самих обитателей закрепилось ласковое сокращение «Танатор». Утративший первоначальную функцию, парк тем не менее выполняет ключевую роль в жизнедеятельности вида: он воспринимается Синксами не просто как место проживания, но как дом и семья — объект привязанности, которую они порой проявляют с чрезмерной интенсивностью.</p><p>«Танатор» представляет собой пространство, где Синксы обрели состояние, субъективно переживаемое ими как счастье. Инфраструктура парка — колесо обозрения, лабиринты, горки и прочие аттракционы — сохранилась и функционально адаптирована: она обеспечивает обитателям постоянную физическую нагрузку, поддержание тонуса и возможность дальнейшего физического развития.</p>')">ТАНАТОР</button>
+
+            <button class="menu-btn" onclick="openTerminal('ЛИЦЕДЕИ', '<p>Лицедеи представляют собой паразитические организмы, распространяющиеся между планетами посредством метеоритных дождей. В ходе метеоритного события фрагменты породы, несущие паразита, достигают поверхности той или иной территории. При условии выживания в процессе падения и последующего выхода из осколка Лицедей переходит к активному поиску восприимчивого носителя, способного принять имплантацию.</p><p>При успешном внедрении в организм носителя паразит запускает процесс, завершающийся гибелью хозяина; по истечении определённого периода из тела носителя формируется и выходит наружу незрелая особь Синкса.</p><p><span class=\'highlight\'>Дополнение — механизм смены носителей и накопления генетического материала</span></p><p>Лицедей обладает способностью — при определённых условиях, определяемых, по-видимому, его собственной «оценкой» целесообразности, — покидать текущего носителя и переходить к следующему. При такой смене носителей паразит сохраняет генетический материал предыдущего хозяина и смешивает его с ДНК нового, что приводит к накоплению и рекомбинации наследственной информации. Это объясняет потенциальное разнообразие морфологических и физиологических признаков у формирующихся Синксов, а также их способность адаптироваться к различным условиям среды.</p>')">ЛИЦЕДЕИ</button>
+        </div>
+    </div>
+
+    <div id="terminal-modal">
+        <div class="term-header">
+            <div class="term-title" id="modal-title">ЗАГОЛОВОК</div>
+            <button class="close-btn" onclick="closeTerminal()">[ ЗАКРЫТЬ ]</button>
+        </div>
+        <div class="term-body">
+            <div id="modal-text">Текст</div>
+        </div>
+    </div>
+
+    <script>
+        // ЛОГИКА ОКНА
+        const modal = document.getElementById('terminal-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalText = document.getElementById('modal-text');
+
+        function openTerminal(title, text) {
+            modalTitle.innerText = `> ${title}`;
+            modalText.innerHTML = text;
+            modal.classList.add('active');
+        }
+
+        function closeTerminal() {
+            modal.classList.remove('active');
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeTerminal();
+        });
+
+        // ==========================================
+        // ЭФФЕКТ ПЛОТНОЙ "ЖИДКОСТИ" НА ФОНЕ
+        // ==========================================
+        const canvas = document.getElementById('water-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let width, height;
+        let cols, rows;
+        const size = 8; 
+        let time = 0;
+
+        function initCanvas() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+
+            cols = Math.floor(width / size);
+            rows = Math.floor(height / size);
+        }
+
+        function draw() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, width, height);
+            
+            time += 0.015; 
+            
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    let wave1 = Math.sin(x * 0.08 + time) * Math.cos(y * 0.08 + time);
+                    let wave2 = Math.sin(x * 0.03 - time * 0.7) * Math.sin(y * 0.05 + time * 0.9);
+                    let wave3 = Math.sin((x + y) * 0.05 + time * 1.5) * Math.cos(x * 0.02);
+                    
+                    let value = (wave1 + wave2 + wave3) / 3; 
+                    value = (value + 1) / 2; 
+
+                    if (value > 0.5) { 
+                        let alpha = (value - 0.5) / 0.5;
+                        
+                        if (alpha > 0.8) {
+                            ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                        } else {
+                            ctx.fillStyle = `rgba(77, 166, 255, ${alpha})`;
+                        }
+                        
+                        ctx.beginPath();
+                        ctx.roundRect(x * size, y * size, size - 1.5, size - 1.5, 1);
+                        ctx.fill();
+                    }
+                }
+            }
+            requestAnimationFrame(draw);
+        }
+
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+                if (w < 2 * r) r = w / 2;
+                if (h < 2 * r) r = h / 2;
+                this.beginPath();
+                this.moveTo(x + r, y);
+                this.arcTo(x + w, y, x + w, y + h, r);
+                this.arcTo(x + w, y + h, x, y + h, r);
+                this.arcTo(x, y + h, x, y, r);
+                this.arcTo(x, y, x + w, y, r);
+                this.closePath();
+                return this;
+            };
+        }
+
+        window.addEventListener('resize', initCanvas);
+        
+        initCanvas();
+        draw();
+    </script>
+</body>
+</html>
